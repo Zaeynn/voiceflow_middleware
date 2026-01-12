@@ -6,7 +6,7 @@ const app = express();
 app.use(bodyParser.urlencoded({ extended: false }));
 
 const VOICEFLOW_PROJECT_ID = '695ffafd389c1d47f6201717';
-const VOICEFLOW_API_KEY = 'VF-API-KEY-HERE'; // replace with your Voiceflow API key
+const VOICEFLOW_API_KEY = process.env.VOICEFLOW_API_KEY; // set this in Render
 
 app.post('/webhook', async (req, res) => {
   const userId = req.body.From;
@@ -17,7 +17,7 @@ app.post('/webhook', async (req, res) => {
     {
       method: 'POST',
       headers: {
-        Authorization: VOICEFLOW_API_KEY,
+        Authorization: `Bearer ${VOICEFLOW_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ type: 'text', payload: userMessage }),
