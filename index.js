@@ -4,6 +4,8 @@ const fetch = require('node-fetch');
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: false }));
+app.post('/webhook', async (req, res) => {
+  console.log('Twilio webhook hit! Body:', req.body);
 
 // ✅ Use environment variable for security
 const VOICEFLOW_PROJECT_ID = '695ffafd389c1d47f6201717';
