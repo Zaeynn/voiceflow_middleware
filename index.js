@@ -1,6 +1,3 @@
-app.post('/webhook', async (req, res) => {
-  console.log('Twilio webhook hit! Body:', JSON.stringify(req.body || {}));
-
 const express = require('express');
 const bodyParser = require('body-parser');
 const fetch = require('node-fetch');
@@ -8,11 +5,14 @@ const fetch = require('node-fetch');
 const app = express();
 app.use(bodyParser.urlencoded({ extended: false }));
 
-// ✅ Use environment variable for security
+// ✅ Environment variables for security
 const VOICEFLOW_PROJECT_ID = '695ffafd389c1d47f6201717';
 const VOICEFLOW_API_KEY = process.env.VOICEFLOW_API_KEY;
 
 app.post('/webhook', async (req, res) => {
+  // ✅ Safe logging
+  console.log('Twilio webhook hit! Body:', JSON.stringify(req.body || {}));
+
   const userId = req.body.From;
   const userMessage = req.body.Body;
 
@@ -36,14 +36,12 @@ app.post('/webhook', async (req, res) => {
         },
         body: JSON.stringify({
           type: 'text',
-          payload: { message: userMessage }, // ✅ Correct format
+          payload: { message: userMessage },
         }),
       }
     );
 
     const data = await vfResponse.json();
-
-    // 3️⃣ Handle both possible response formats safely
     const trace = Array.isArray(data) ? data : data.trace || [];
 
     let reply = 'No response from Voiceflow.';
@@ -58,7 +56,7 @@ app.post('/webhook', async (req, res) => {
       }
     }
 
-    // 4️⃣ Send follow-up WhatsApp message
+    // 3️⃣ Send follow-up WhatsApp message
     await sendWhatsAppMessage(userId, reply);
 
   } catch (err) {
@@ -71,7 +69,7 @@ app.post('/webhook', async (req, res) => {
 async function sendWhatsAppMessage(to, message) {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const from = 'whatsapp:+14155238886'; // Twilio sandbox number
+  const from = 'whatsapp:+14155238886'; // Twilio sandbox
 
   const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
 
