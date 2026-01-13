@@ -32,8 +32,9 @@ app.post('/webhook', async (req, res) => {
         },
         body: JSON.stringify({
           type: 'text',
-          payload: userMessage,
-        }),
+          payload: {
+            message: userMessage
+                  },        }),
       }
     );
 
