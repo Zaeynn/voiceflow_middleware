@@ -1,3 +1,6 @@
+app.post('/webhook', async (req, res) => {
+  console.log('Twilio webhook hit! Body:', JSON.stringify(req.body || {}));
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const fetch = require('node-fetch');
