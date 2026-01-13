@@ -5,6 +5,7 @@ const fetch = require('node-fetch');
 const app = express();
 app.use(bodyParser.urlencoded({ extended: false }));
 
+// ✅ Use environment variable for security
 const VOICEFLOW_PROJECT_ID = '695ffafd389c1d47f6201717';
 const VOICEFLOW_API_KEY = process.env.VOICEFLOW_API_KEY;
 
@@ -12,7 +13,7 @@ app.post('/webhook', async (req, res) => {
   const userId = req.body.From;
   const userMessage = req.body.Body;
 
-  // 1️⃣ Respond IMMEDIATELY to Twilio
+  // 1️⃣ Respond immediately to Twilio
   res.set('Content-Type', 'text/xml');
   res.send(`
     <Response>
@@ -20,7 +21,7 @@ app.post('/webhook', async (req, res) => {
     </Response>
   `);
 
-  // 2️⃣ Process Voiceflow asynchronously
+  // 2️⃣ Call Voiceflow asynchronously
   try {
     const vfResponse = await fetch(
       `https://general-runtime.voiceflow.com/state/${VOICEFLOW_PROJECT_ID}/user/${encodeURIComponent(userId)}/interact`,
@@ -32,33 +33,29 @@ app.post('/webhook', async (req, res) => {
         },
         body: JSON.stringify({
           type: 'text',
-          payload: {
-            message: userMessage
-                  },        }),
+          payload: { message: userMessage }, // ✅ Correct format
+        }),
       }
     );
 
     const data = await vfResponse.json();
 
-    // 3️⃣ Safely extract message
-// 3️⃣ Safely extract message
-let reply = 'No response from Voiceflow.';
+    // 3️⃣ Handle both possible response formats safely
+    const trace = Array.isArray(data) ? data : data.trace || [];
 
-if (Array.isArray(data.trace)) {
-  for (const item of data.trace) {
-    if (item.type === 'text' && item.payload?.message) {
-      reply = item.payload.message;
-      break;
+    let reply = 'No response from Voiceflow.';
+    for (const item of trace) {
+      if (item.type === 'text' && item.payload?.message) {
+        reply = item.payload.message;
+        break;
+      }
+      if (item.type === 'speak' && item.payload?.text) {
+        reply = item.payload.text;
+        break;
+      }
     }
-    if (item.type === 'speak' && item.payload?.text) {
-      reply = item.payload.text;
-      break;
-    }
-  }
-}
 
-
-    // 4️⃣ Send follow-up message using Twilio API
+    // 4️⃣ Send follow-up WhatsApp message
     await sendWhatsAppMessage(userId, reply);
 
   } catch (err) {
@@ -67,11 +64,11 @@ if (Array.isArray(data.trace)) {
   }
 });
 
-// Twilio SEND message (not webhook response)
+// Twilio send message function
 async function sendWhatsAppMessage(to, message) {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const from = 'whatsapp:+14155238886'; // Twilio sandbox
+  const from = 'whatsapp:+14155238886'; // Twilio sandbox number
 
   const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
 
@@ -84,14 +81,12 @@ async function sendWhatsAppMessage(to, message) {
     method: 'POST',
     headers: {
       Authorization:
-        'Basic ' +
-        Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
+        'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: params.toString(),
   });
 }
 
-app.listen(process.env.PORT || 3000, () =>
-  console.log('Middleware running')
-);
+// ✅ Listen on Render port or default 3000
+app.listen(process.env.PORT || 3000, () => console.log('Middleware running'));
