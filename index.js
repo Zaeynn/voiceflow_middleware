@@ -42,12 +42,10 @@ app.post('/webhook', async (req, res) => {
     );
 
     const data = await vfResponse.json();
-
-    // Debug: log Voiceflow raw response
     console.log('Voiceflow raw response:', JSON.stringify(data || {}));
 
     // ----------------------
-    // Safely extract messages
+    // Extract messages
     // ----------------------
     let traceItems = [];
     if (Array.isArray(data)) {
@@ -58,16 +56,25 @@ app.post('/webhook', async (req, res) => {
       traceItems = [data];
     }
 
+    // Filter all text or speak blocks in order
     const messages = traceItems
-      .filter(i => (i.type === 'text' && i.payload?.message) || (i.type === 'speak' && i.payload?.text))
-      .map(i => i.type === 'text' ? i.payload.message : i.payload.text);
-
-    const reply = messages.join('\n') || 'No response from Voiceflow.';
+      .filter(
+        i =>
+          (i.type === 'text' && i.payload?.message) ||
+          (i.type === 'speak' && i.payload?.text)
+      )
+      .map(i => (i.type === 'text' ? i.payload.message : i.payload.text));
 
     // ----------------------
-    // Send WhatsApp message via Twilio
+    // Send each message separately for multi-line chat feel
     // ----------------------
-    await sendWhatsAppMessage(userId, reply);
+    if (messages.length > 0) {
+      for (const msg of messages) {
+        await sendWhatsAppMessage(userId, msg);
+      }
+    } else {
+      await sendWhatsAppMessage(userId, 'No response from Voiceflow.');
+    }
 
     // Respond 200 OK to Twilio
     res.sendStatus(200);
