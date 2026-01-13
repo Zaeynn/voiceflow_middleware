@@ -40,17 +40,22 @@ app.post('/webhook', async (req, res) => {
     const data = await vfResponse.json();
 
     // 3️⃣ Safely extract message
-    let reply = 'No response from Voiceflow.';
-    for (const item of data) {
-      if (item.type === 'text' && item.payload?.message) {
-        reply = item.payload.message;
-        break;
-      }
-      if (item.type === 'speak' && item.payload?.text) {
-        reply = item.payload.text;
-        break;
-      }
+// 3️⃣ Safely extract message
+let reply = 'No response from Voiceflow.';
+
+if (Array.isArray(data.trace)) {
+  for (const item of data.trace) {
+    if (item.type === 'text' && item.payload?.message) {
+      reply = item.payload.message;
+      break;
     }
+    if (item.type === 'speak' && item.payload?.text) {
+      reply = item.payload.text;
+      break;
+    }
+  }
+}
+
 
     // 4️⃣ Send follow-up message using Twilio API
     await sendWhatsAppMessage(userId, reply);
