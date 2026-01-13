@@ -7,14 +7,21 @@ const app = express();
 app.use(bodyParser.urlencoded({ extended: false }));
 
 // ======================
-// Environment variables
+// Environment variables for Twilio
 // ======================
-const VOICEFLOW_PROJECT_ID = '695ffafd389c1d47f6201717';
-const VOICEFLOW_API_KEY = process.env.VOICEFLOW_API_KEY;
-
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const TWILIO_WHATSAPP_NUMBER = 'whatsapp:+14155238886'; // Twilio Sandbox
+
+// ======================
+// Hardcoded Q&A
+// ======================
+const qa = {
+  "working hours": "Our working hours are from Sunday to Thursday, 9:00 AM to 5:00 PM. How else can I help you?",
+  "refund policy": "Our refund policy allows for returns within 14 days of purchase, provided the item is in its original condition. Refunds take 5-7 business days to process.",
+  "booking instructions": "To make a booking, please provide your full name, preferred date, and time. You can also book directly through our website.",
+  "talk to a human": "I’ll connect you to a human representative."
+};
 
 // ======================
 // Twilio webhook endpoint
@@ -24,59 +31,21 @@ app.post('/webhook', async (req, res) => {
     console.log('Twilio webhook hit! Body:', JSON.stringify(req.body || {}));
 
     const userId = req.body.From;
-    const userMessage = req.body.Body;
+    const userMessage = (req.body.Body || '').toLowerCase().trim();
 
-    // ----------------------
-    // Call Voiceflow
-    // ----------------------
-    const vfResponse = await fetch(
-      `https://general-runtime.voiceflow.com/state/${VOICEFLOW_PROJECT_ID}/user/${encodeURIComponent(userId)}/interact`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${VOICEFLOW_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ type: 'text', payload: { message: userMessage } }),
+    // Find answer by keyword match
+    let reply = "Sorry, I don't understand that question.";
+
+    for (const key in qa) {
+      if (userMessage.includes(key.toLowerCase())) {
+        reply = qa[key];
+        break;
       }
-    );
-
-    const data = await vfResponse.json();
-    console.log('Voiceflow raw response:', JSON.stringify(data || {}));
-
-    // ----------------------
-    // Extract messages
-    // ----------------------
-    let traceItems = [];
-    if (Array.isArray(data)) {
-      traceItems = data;
-    } else if (data?.trace) {
-      traceItems = data.trace;
-    } else {
-      traceItems = [data];
     }
 
-    // Filter all text or speak blocks in order
-    const messages = traceItems
-      .filter(
-        i =>
-          (i.type === 'text' && i.payload?.message) ||
-          (i.type === 'speak' && i.payload?.text)
-      )
-      .map(i => (i.type === 'text' ? i.payload.message : i.payload.text));
+    // Send WhatsApp reply
+    await sendWhatsAppMessage(userId, reply);
 
-    // ----------------------
-    // Send each message separately for multi-line chat feel
-    // ----------------------
-    if (messages.length > 0) {
-      for (const msg of messages) {
-        await sendWhatsAppMessage(userId, msg);
-      }
-    } else {
-      await sendWhatsAppMessage(userId, 'No response from Voiceflow.');
-    }
-
-    // Respond 200 OK to Twilio
     res.sendStatus(200);
   } catch (err) {
     console.error('Error in webhook:', err);
