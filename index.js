@@ -39,7 +39,9 @@ app.post('/webhook', async (req, res) => {
     // Send reply back to WhatsApp
     await sendWhatsAppMessage(userId, reply);
 
-    res.sendStatus(200);
+    // Respond with empty TwiML so Twilio doesn't send "OK"
+    res.type('text/xml');
+    res.send('<Response></Response>');
   } catch (err) {
     console.error('Error in webhook:', err);
     res.sendStatus(500);
